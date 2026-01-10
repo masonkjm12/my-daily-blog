@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MY BLOG</title>
+  <link rel="stylesheet" href="blog.css">
+</head>
+<body>
+  <div class="container">
+    <input id="title" placeholder="제목">
+    <textarea id="content" placeholder="내용"></textarea>
+    <input type="file" id="media" accept="image/*, video/*">
+    
+    <button id="add-btn" onclick="addPost()">
+      업로드
+    </button>
+
+    <div id="post-list"></div>
+  </div>
+  
+  <script src="blog.js"></script>
+</body>
+</html>
