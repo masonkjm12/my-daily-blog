@@ -1,139 +1,198 @@
-// 1. 글 목록을 담을 빈 리스트(배열) 만들기
-// 만약 저장된 글이 있다면 그걸 가져오고, 없으면 빈 리스트로 시작
 let posts = JSON.parse(localStorage.getItem('posts')) || [];
+let editingIdx = -1; 
+let currentFilter = 'All';
+let viewMode = 'list'; // 기본은 목록형 ('list' 또는 'album')
 
-// 현재 수정 중인 글의 번호를 기억하는 변수 (-1이면 새 글 작성 모드)
-let editingIdx = -1;
-
-// 2. 화면에 글을 보여주는 함수 (그리기 담당)
+// 1. 게시물 목록 그리기 (요약본만 표시)
 function renderPosts() {
     const postList = document.getElementById('post-list');
-    postList.innerHTML = ''; // 일단 화면을 싹 비우고
+    postList.innerHTML = ''; 
+    
+    // 뷰 모드에 따라 클래스 변경 (CSS가 모양을 바꿔줌)
+    postList.className = (viewMode === 'list') ? 'list-mode' : 'album-mode';
 
-    // 리스트에 있는 글들을 하나씩 꺼내서 화면에 추가
+    renderCategoryBar(); // 메뉴바 갱신
+
     for (let i = 0; i < posts.length; i++) {
         const post = posts[i];
-        const dateString = post.date ? post.date : "";
+        const category = post.category || '일반';
 
-        let mediaTag = "";
-        if (post.media) {
-            if (post.media.includes("data:video")){
-                mediaTag = `<video src="${post.media}" controls></video>`;
-            } else {
-                mediaTag = `<img src="${post.media}">`;
-            }
+        // 필터링
+        if (currentFilter !== 'All' && category !== currentFilter) continue;
+
+        const dateString = post.date ? post.date.split('. ')[1] + '.' + post.date.split('. ')[2] : ""; // 날짜 짧게
+        const colorStyle = stringToColor(category);
+        
+        // 썸네일 처리 (이미지 없으면 회색 박스 대신 안 보이게 처리 등)
+        let thumbTag = "";
+        if (post.media && !post.media.includes("data:video")) {
+            thumbTag = `<img src="${post.media}" class="post-thumb">`;
+        } else if (post.media && post.media.includes("data:video")) {
+             thumbTag = `<video src="${post.media}" class="post-thumb"></video>`;
+        } else {
+            // 이미지가 없을 때 앨범형이면 기본 이미지
+            thumbTag = `<div class="post-thumb" style="background-color:#eee; display:flex; align-items:center; justify-content:center; color:#999; font-size:12px;">No Image</div>`;
         }
+
+        // ⭐ 클릭하면 viewPost(i) 실행!
         postList.innerHTML += `
-            <div class="post">
-                <div class="post-header">
-                    <h3>${post.title}</h3>
-                    <span class="date">${dateString}</span>
-                </div>
-                ${mediaTag}
-                <p>${post.content}</p>
-                <div class="post-footer">
-                    <button class="edit-btn" onclick="editPost(${i})">수정</button>
-                    <button class="delete-btn" onclick="deletePost(${i})">삭제</button>
+            <div class="post-item" onclick="viewPost(${i})">
+                ${thumbTag}
+                <div class="post-info">
+                    <div>
+                        <span class="badge" style="background-color: ${colorStyle}">${category}</span>
+                        <h3>${post.title}</h3>
+                    </div>
+                    <span class="date">${post.date}</span>
                 </div>
             </div>
         `;
-// ... 뒷부분 생략 ...
     }
 }
 
-// 3. 글을 추가하는 함수 (등록 담당)
+// 2. 상세 페이지 보여주기 (클릭 시 실행)
+function viewPost(index) {
+    const post = posts[index];
+    
+    // 메인 숨기고 상세 보이기
+    document.getElementById('main-view').classList.add('hidden');
+    document.getElementById('detail-view').classList.remove('hidden');
+    document.getElementById('category-bar').classList.add('hidden'); // 상단 메뉴도 잠시 숨김 (집중 위해)
+
+    const detailContent = document.getElementById('detail-content');
+    
+    let mediaTag = "";
+    if (post.media) {
+        if (post.media.includes("data:video")){
+            mediaTag = `<video src="${post.media}" controls></video>`;
+        } else {
+            mediaTag = `<img src="${post.media}">`;
+        }
+    }
+
+    // 상세 내용 채워넣기
+    detailContent.innerHTML = `
+        <div class="detail-header">
+            <span class="badge" style="background-color: ${stringToColor(post.category || '일반')}">${post.category || '일반'}</span>
+            <h2>${post.title}</h2>
+            <div class="detail-meta">${post.date}</div>
+        </div>
+        ${mediaTag}
+        <p>${post.content}</p>
+        
+        <div class="detail-actions">
+            <button class="edit-btn" onclick="editPost(${index})">수정</button>
+            <button class="delete-btn" onclick="deletePost(${index})">삭제</button>
+        </div>
+    `;
+    
+    window.scrollTo(0, 0);
+}
+
+// 3. 메인으로 돌아가기 (뒤로가기)
+function showMain() {
+    document.getElementById('main-view').classList.remove('hidden');
+    document.getElementById('detail-view').classList.add('hidden');
+    document.getElementById('category-bar').classList.remove('hidden');
+    renderPosts();
+}
+
+// 4. 보기 방식 변경 (목록형 <-> 앨범형)
+function setViewMode(mode) {
+    viewMode = mode;
+    renderPosts();
+}
+
+// --- 아래는 기존 로직 (저장, 수정, 삭제, 카테고리 등) ---
+
+function renderCategoryBar() {
+    const navBar = document.getElementById('category-bar');
+    const dataList = document.getElementById('category-list');
+    const allCategories = posts.map(p => p.category || '일반');
+    const uniqueCategories = ['All', ...new Set(allCategories)];
+
+    navBar.innerHTML = ''; dataList.innerHTML = '';
+
+    uniqueCategories.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.innerText = (cat === 'All') ? "전체보기" : cat;
+        if (cat === currentFilter) btn.classList.add('active');
+        btn.onclick = () => { currentFilter = cat; renderPosts(); showMain(); }; // 필터 누르면 메인으로
+        navBar.appendChild(btn);
+
+        if(cat !== 'All') {
+            const option = document.createElement('option');
+            option.value = cat;
+            dataList.appendChild(option);
+        }
+    });
+}
+
 function addPost() {
+    const categoryInput = document.getElementById('category-input');
     const titleInput = document.getElementById('title');
     const contentInput = document.getElementById('content');
     const fileInput = document.getElementById('media');
+
+    let category = categoryInput.value.trim();
+    if (category === "") category = "일반";
 
     const title = titleInput.value;
     const content = contentInput.value;
     const file = fileInput.files[0];
 
-    // 제목이나 내용이 비어있으면 경고창 띄우기
-    if (!title || !content) {
-        alert("제목과 내용을 모두 입력해주세요!");
-        return;
-    }
+    if (!title || !content) { alert("내용을 입력해주세요!"); return; }
     
     const now = new Date();
     const reader = new FileReader();
 
-    // 파일을 다 읽었거나, 파일이 없을 때 실행할 로직
     const saveProcess = (mediaData) => {
-        // 수정 모드일 때 기존 이미지를 유지할지 결정
         let finalMedia = mediaData;
-        
-        // 파일은 안 바꿨는데 수정 모드라면? -> 기존 이미지 그대로 사용
-        if (editingIdx !== -1 && !file) {
-            finalMedia = posts[editingIdx].media;
-        }
+        if (editingIdx !== -1 && !file) finalMedia = posts[editingIdx].media;
 
         const newPost = {
-            title: title,
-            content: content,
-            date: now.toLocaleString(),
-            media: finalMedia // 이미지 데이터 저장
+            category: category, title: title, content: content,
+            date: now.toLocaleString(), media: finalMedia
         };
 
-        if (editingIdx === -1) {
-            // 새 글 작성 모드 -> 맨 앞에 추가
-            posts.unshift(newPost);
-        } else {
-            // 수정 모드 -> 해당 자리를 교체
-            posts[editingIdx] = newPost;
-            
-            // 수정 끝났으니 모드 초기화
-            editingIdx = -1;
-            document.getElementById('add-btn').innerText = "기록 남기기";
-        }
+        if (editingIdx === -1) posts.unshift(newPost);
+        else { posts[editingIdx] = newPost; editingIdx = -1; document.getElementById('add-btn').innerText = "기록 남기기"; }
 
-        // 저장 및 화면 갱신
         localStorage.setItem('posts', JSON.stringify(posts));
-        renderPosts();
-
-        // 입력창 비우기
-        titleInput.value = '';
-        contentInput.value = '';
-        fileInput.value = ''; // 파일 선택도 초기화
+        showMain(); // 저장 후 메인으로 이동
+        
+        titleInput.value = ''; contentInput.value = ''; fileInput.value = ''; categoryInput.value = '';
     };
 
-    // 파일이 있으면 읽고, 없으면 그냥 저장하러 감
-    if (file) {
-        reader.readAsDataURL(file); // 파일을 문자열로 변환 시작!
-        reader.onload = function(e) {
-            saveProcess(e.target.result); // 변환된 결과물을 가지고 저장
-        };
-    } else {
-        saveProcess(""); // 파일 없이 저장
-    }
+    if (file) { reader.readAsDataURL(file); reader.onload = (e) => saveProcess(e.target.result); } 
+    else { saveProcess(""); }
 }
 
 function deletePost(index){
-    if (!confirm("정말 삭제하시겠습니까?")){
-        return;
-    }
+    if (!confirm("삭제하시겠습니까?")) return;
     posts.splice(index, 1);
     localStorage.setItem('posts', JSON.stringify(posts));
-    renderPosts();
+    showMain(); // 삭제 후 메인으로
 }
+
 function editPost(index){
     const post = posts[index];
-    // 입력창에 기존 내용 채우기 
+    showMain(); // 수정하려면 입력창이 있는 메인으로 가야 함
+    
     document.getElementById('title').value = post.title;
     document.getElementById('content').value = post.content;
-
-    // "수정 중"임을 알리기 위해 전역 변수 업데이트
+    document.getElementById('category-input').value = post.category || '';
+    
     editingIdx = index;
-    
-    // 버튼 글씨 바꾸기
     document.getElementById('add-btn').innerText = "수정 완료";
-    
-    // 입력하기 편하게 스크롤 위로 올리기
     window.scrollTo(0, 0);
 }
 
+function stringToColor(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) { hash = str.charCodeAt(i) + ((hash << 5) - hash); }
+    const hue = Math.abs(hash % 360);
+    return `hsl(${hue}, 70%, 85%)`; 
+}
 
-// 페이지가 처음 열릴 때, 저장된 글이 있으면 화면에 그려주기
 renderPosts();
