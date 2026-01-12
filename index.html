@@ -1,22 +1,44 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MY BLOG</title>
+  <title>Jong's blog</title>
   <link rel="stylesheet" href="blog.css">
 </head>
 <body>
-  <div class="container">
-    <input id="title" placeholder="제목">
-    <textarea id="content" placeholder="내용"></textarea>
-    <input type="file" id="media" accept="image/*, video/*">
-    
-    <button id="add-btn" onclick="addPost()">
-      업로드
-    </button>
 
-    <div id="post-list"></div>
+  <nav id="category-bar"></nav>
+
+  <div class="container">
+    
+    <div id="main-view">
+      <h1>📝 Jong's blog</h1>
+
+      <div class="input-box">
+        <input id="category-input" type="text" list="category-list" placeholder="카테고리 (예: 여행, 맛집)">
+        <datalist id="category-list"></datalist>
+        <input id="title" placeholder="제목을 입력하세요">
+        <textarea id="content" placeholder="내용을 입력하세요 (상세보기에서 전체 내용이 보입니다)"></textarea>
+        <input type="file" id="media" accept="image/*, video/*">
+        <button id="add-btn" onclick="addPost()">기록 남기기</button>
+      </div>
+
+      <div class="view-options">
+        <button onclick="setViewMode('list')" id="btn-list">☰ 목록형</button>
+        <button onclick="setViewMode('album')" id="btn-album">▦ 앨범형</button>
+      </div>
+
+      <div id="post-list" class="list-mode"></div>
+    </div>
+
+    <div id="detail-view" class="hidden">
+      <button onclick="showMain()" class="back-btn">⬅ 뒤로가기</button>
+      
+      <div id="detail-content">
+        </div>
+    </div>
+
   </div>
   
   <script src="blog.js"></script>
